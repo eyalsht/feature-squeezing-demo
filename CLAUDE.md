@@ -42,7 +42,7 @@ py -3.13 -m venv .venv
 
 - [`tdd-cycle`](.claude/skills/tdd-cycle/SKILL.md) — RED → GREEN → REFACTOR; one failing test before any implementation. Tests for Eyal's tasks are pre-written in the per-step plan — copy them verbatim.
 - [`commit-discipline`](.claude/skills/commit-discipline/SKILL.md) — Conventional Commits, atomic diffs (< 300 lines).
-- [`branch-discipline`](.claude/skills/branch-discipline/SKILL.md) — Feature branches per phase, `--no-ff` merge, never commit directly to `main`. See [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
+- [`branch-discipline`](.claude/skills/branch-discipline/SKILL.md) — Feature branches per phase → push → open PR (`gh pr create`) → merge on GitHub. Local `main` is read-only — only `git pull` ever updates it. See [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md) and [ADR-007](docs/adr/ADR-007-pr-based-workflow.md).
 
 ## Scope rule
 
