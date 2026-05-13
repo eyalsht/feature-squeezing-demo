@@ -1,3 +1,4 @@
+# tests/test_detector.py
 import numpy as np
 import pytest
 from unittest.mock import MagicMock
@@ -47,7 +48,10 @@ def test_embed_uses_first_face_when_multiple_detected(blank_face_img):
     np.testing.assert_array_equal(result, embed_a)
 
 
-from detector import SqueezeDetector, ArcFaceEmbedder, DetectionResult
+# Task 6 tests — SqueezeDetector and DetectionResult
+import numpy as np
+from unittest.mock import MagicMock
+from detector import SqueezeDetector, ArcFaceEmbedder
 from squeezers import BitDepthSqueezer, MedianFilterSqueezer
 
 
