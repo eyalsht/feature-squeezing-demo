@@ -45,3 +45,70 @@ def test_embed_uses_first_face_when_multiple_detected(blank_face_img):
     embedder = ArcFaceEmbedder(detector=mock_detector)
     result = embedder.embed(blank_face_img)
     np.testing.assert_array_equal(result, embed_a)
+
+
+from detector import SqueezeDetector, ArcFaceEmbedder, DetectionResult
+from squeezers import BitDepthSqueezer, MedianFilterSqueezer
+
+
+def _normed(v: np.ndarray) -> np.ndarray:
+    return (v / np.linalg.norm(v)).astype(np.float32)
+
+
+def test_squeeze_detector_flags_adversarial_when_shift_exceeds_threshold(blank_face_img):
+    target_embed = _normed(np.ones(512))
+    original_embed = _normed(np.ones(512))
+    attacked_embed = _normed(-np.ones(512))
+    squeezed_embed = _normed(np.ones(512) * 0.9)
+
+    mock_embedder = MagicMock(spec=ArcFaceEmbedder)
+    mock_embedder.embed.side_effect = [
+        original_embed,
+        attacked_embed,
+        squeezed_embed,
+        squeezed_embed,
+    ]
+
+    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+
+    detector = SqueezeDetector(
+        embedder=mock_embedder,
+        squeezers=[bit_sq, med_sq],
+        threshold=0.50,
+    )
+    result = detector.detect(target_embed, blank_face_img, blank_face_img)
+    assert result.is_adversarial is True
+    assert result.max_shift > 0.50
+
+
+def test_squeeze_detector_clean_input_not_flagged(blank_face_img):
+    target_embed = _normed(np.ones(512))
+    similar_embed = _normed(np.ones(512) * 0.98)
+
+    mock_embedder = MagicMock(spec=ArcFaceEmbedder)
+    mock_embedder.embed.return_value = similar_embed
+
+    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+
+    detector = SqueezeDetector(
+        embedder=mock_embedder,
+        squeezers=[bit_sq, med_sq],
+        threshold=0.50,
+    )
+    result = detector.detect(target_embed, blank_face_img, blank_face_img)
+    assert result.is_adversarial is False
+
+
+def test_detection_result_contains_all_sim_keys(blank_face_img):
+    embed = _normed(np.random.randn(512))
+    mock_embedder = MagicMock(spec=ArcFaceEmbedder)
+    mock_embedder.embed.return_value = embed
+
+    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+
+    detector = SqueezeDetector(mock_embedder, [bit_sq, med_sq])
+    result = detector.detect(embed, blank_face_img, blank_face_img)
+    assert set(result.sims.keys()) == {"original", "attacked", "bit", "median"}
