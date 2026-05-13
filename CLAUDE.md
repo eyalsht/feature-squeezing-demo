@@ -44,6 +44,25 @@ py -3.13 -m venv .venv
 - [`commit-discipline`](.claude/skills/commit-discipline/SKILL.md) — Conventional Commits, atomic diffs (< 300 lines).
 - [`branch-discipline`](.claude/skills/branch-discipline/SKILL.md) — Feature branches per phase → push → open PR (`gh pr create`) → merge on GitHub. Local `main` is read-only — only `git pull` ever updates it. See [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md) and [ADR-007](docs/adr/ADR-007-pr-based-workflow.md).
 
+## Repository layout
+
+```
+src/              ← all business-logic Python modules live here
+  squeezers.py   (BitDepthSqueezer, MedianFilterSqueezer)
+  attack.py      (Face, GlassesAttacker)
+  detector.py    (FaceDetector, ArcFaceEmbedder, SqueezeDetector, DetectionResult)
+  dataset.py     (Identity, IdentityDatabase)
+app.py            ← Gradio entry point — MUST stay at repo root (HF Spaces requirement)
+tests/            ← pytest suite; imports resolve via pythonpath = src in pytest.ini
+dataset/          ← 6 LFW JPEG images (alice, bob, carol × 2)
+docs/             ← ADRs, specs, plans
+scripts/          ← dev.ps1 helper
+```
+
+**Adding a new module:** create it in `src/`, import it in `app.py` as `from <module> import ...` (no `src.` prefix needed — `src/` is on the Python path for both pytest and the app).
+
+**app.py path note:** `app.py` adds `src/` to `sys.path` at startup so HF Spaces can resolve `src/` modules without packaging. See the bootstrap section in `app.py`.
+
 ## Scope rule
 
 Don't change **product** behaviour (anything described in the design spec or PRD) without explicit sign-off from imree or Eyal. Updating the product = update PRD/ADR first, then implement.

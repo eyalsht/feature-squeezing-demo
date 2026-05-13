@@ -58,11 +58,11 @@ DetectionResult (dataclass)
 
 | File | Responsibility |
 |---|---|
-| `squeezers.py` | `BaseSqueezer` ABC + `BitDepthSqueezer` + `MedianFilterSqueezer` |
-| `attack.py` | `Face` dataclass + `GlassesAttacker` |
-| `detector.py` | `FaceDetector` + `ArcFaceEmbedder` + `DetectionResult` + `SqueezeDetector` |
-| `dataset.py` | `Identity` dataclass + `IdentityDatabase` |
-| `app.py` | Gradio Blocks UI — CSS, Tab 1, Tab 2, event wiring, service bootstrap |
+| `src/squeezers.py` | `BaseSqueezer` ABC + `BitDepthSqueezer` + `MedianFilterSqueezer` |
+| `src/attack.py` | `Face` dataclass + `GlassesAttacker` |
+| `src/detector.py` | `FaceDetector` + `ArcFaceEmbedder` + `DetectionResult` + `SqueezeDetector` |
+| `src/dataset.py` | `Identity` dataclass + `IdentityDatabase` |
+| `app.py` | Gradio Blocks UI — CSS, Tab 1, Tab 2, event wiring, service bootstrap (**root only — HF Spaces**) |
 | `tests/conftest.py` | Shared fixtures: dummy images, mock embedder, mock detector |
 | `tests/test_squeezers.py` | Unit tests for both squeezers |
 | `tests/test_attack.py` | Unit tests for `GlassesAttacker` |
@@ -71,6 +71,8 @@ DetectionResult (dataclass)
 | `dataset/` | 6 JPEG images: `alice_1.jpg`, `alice_2.jpg`, `bob_1.jpg`, `bob_2.jpg`, `carol_1.jpg`, `carol_2.jpg` |
 | `requirements.txt` | All dependencies pinned |
 | `README.md` | HF Spaces YAML header + project description |
+
+> **Import convention:** `pytest.ini` sets `pythonpath = src` so tests import as `from squeezers import ...` (no `src.` prefix). `app.py` inserts `src/` into `sys.path` at startup for the same effect at runtime.
 
 ---
 
