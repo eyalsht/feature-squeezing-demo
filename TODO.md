@@ -22,10 +22,10 @@ High-level phase tracker. **Per-step content lives in** [`docs/superpowers/plans
 
 **Goal:** `BitDepthSqueezer` and `MedianFilterSqueezer` implemented and unit-tested.
 
-- [ ] Task 2 — `BitDepthSqueezer` + `BaseSqueezer` ABC ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-2--bitdepthsqueezer))
-- [ ] Task 3 — `MedianFilterSqueezer` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-3--medianfiltersqueezer))
+- [x] Task 2 — `BitDepthSqueezer` + `BaseSqueezer` ABC ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-2--bitdepthsqueezer)) `@imree` — `BitDepthSqueezer` (4 tests), L2 normalisation, shape/dtype preserved
+- [x] Task 3 — `MedianFilterSqueezer` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-3--medianfiltersqueezer)) `@imree` — salt-and-pepper removal, odd-kernel guard (3 tests)
 
-Deliverables: `squeezers.py`, `tests/test_squeezers.py`
+Deliverables: `src/squeezers.py`, `tests/test_squeezers.py`
 
 ---
 
@@ -33,9 +33,9 @@ Deliverables: `squeezers.py`, `tests/test_squeezers.py`
 
 **Goal:** `GlassesAttacker` + `Face` dataclass implemented and unit-tested.
 
-- [x] Task 4 — `GlassesAttacker` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-4--glassesattacker)) `@eyal eyal/phase-2-attack`
+- [x] Task 4 — `GlassesAttacker` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-4--glassesattacker)) `@eyal` — eye-region mask, epsilon-scaled noise, pixel-range clamp (4 tests)
 
-Deliverables: `attack.py`, `tests/test_attack.py`
+Deliverables: `src/attack.py`, `tests/test_attack.py`
 
 ---
 
@@ -43,8 +43,8 @@ Deliverables: `attack.py`, `tests/test_attack.py`
 
 **Goal:** `FaceDetector`, `ArcFaceEmbedder`, `SqueezeDetector`, `DetectionResult` implemented and unit-tested (insightface mocked).
 
-- [x] Task 5 — `FaceDetector` + `ArcFaceEmbedder` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-5--facedetector-and-arcfaceembedder)) `@eyal eyal/phase-3-detector`
-- [x] Task 6 — `SqueezeDetector` + `DetectionResult` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-6--detectionresult-and-squeezedetector)) `@eyal eyal/phase-3-detector`
+- [x] Task 5 — `FaceDetector` + `ArcFaceEmbedder` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-5--facedetector-and-arcfaceembedder)) `@eyal` — lazy-load insightface, 512-dim L2-normed embedding, None if no face (3 tests)
+- [x] Task 6 — `SqueezeDetector` + `DetectionResult` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-6--detectionresult-and-squeezedetector)) `@eyal` — frozen dataclass, cosine shift detection, threshold=0.50 (3 tests)
 
 Deliverables: `detector.py`, `tests/test_detector.py`
 
@@ -54,8 +54,8 @@ Deliverables: `detector.py`, `tests/test_detector.py`
 
 **Goal:** `IdentityDatabase`, `Identity` dataclass implemented; 6 LFW images downloaded.
 
-- [ ] Task 7 — `IdentityDatabase` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-7--identitydatabase))
-- [ ] Task 8 — Run dataset preparation script ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-8--dataset-preparation))
+- [x] Task 7 — `IdentityDatabase` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-7--identitydatabase)) `@agent` — `register()` for live demo face addition, `load()` from disk, `get()`/`names()` (4 tests)
+- [ ] Task 8 — Add 6 dataset images ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-8--dataset-preparation)) — manually copy `alice_1.jpg`, `alice_2.jpg`, `bob_1.jpg`, `bob_2.jpg`, `carol_1.jpg`, `carol_2.jpg` into `dataset/`
 
 Deliverables: `dataset.py`, `tests/test_dataset.py`, `dataset/{alice,bob,carol}_{1,2}.jpg`
 
