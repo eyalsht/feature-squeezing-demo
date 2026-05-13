@@ -203,7 +203,7 @@ def register_identity(name: str, img1: np.ndarray, img2: np.ndarray, state: dict
 
 ## 8. Deployment
 
-1. Create GitHub repo `adversarial-demo`
+1. Create GitHub repo `feature-squeezing-demo`
 2. Create HF Space linked to the repo (Gradio SDK, Python 3.10)
 3. Add `README.md` HF Spaces header:
    ```yaml

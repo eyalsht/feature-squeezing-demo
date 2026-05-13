@@ -7,7 +7,12 @@ __pycache__/
 *.egg-info/
 dist/
 .env
+.venv/
 .superpowers/
+# Per-machine Claude session state (never per-user prefs)
+.claude/.session_state.json
+# IDE
+.idea/
 # Large seminar files — keep out of repo
 *.pdf
 # Dataset images committed explicitly — exclude nothing else in dataset/
