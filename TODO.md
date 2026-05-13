@@ -33,7 +33,7 @@ Deliverables: `squeezers.py`, `tests/test_squeezers.py`
 
 **Goal:** `GlassesAttacker` + `Face` dataclass implemented and unit-tested.
 
-- [ ] Task 4 — `GlassesAttacker` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-4--glassesattacker))
+- [x] Task 4 — `GlassesAttacker` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-4--glassesattacker)) `@eyal eyal/phase-2-attack`
 
 Deliverables: `attack.py`, `tests/test_attack.py`
 
