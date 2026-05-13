@@ -14,7 +14,7 @@ High-level phase tracker. **Per-step content lives in** [`docs/superpowers/plans
 - [x] Workflow scaffold (CLAUDE.md, PRD, TODO, ADRs, GIT_WORKFLOW, ported skills, dev.ps1) — this branch
 - [x] Add `.python-version` pinning `3.13`
 - [x] Bump `requirements.txt` for Python 3.13 wheel availability (see [ADR-001](docs/adr/ADR-001-python-3.13.md))
-- [ ] Run smoke install + `pytest` on a fresh 3.13 venv: `.\scripts\dev.ps1 smoke`
+- [x] Run smoke install + `pytest` on a fresh 3.13 venv: `.\scripts\dev.ps1 smoke`
 
 ---
 
