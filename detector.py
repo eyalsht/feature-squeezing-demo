@@ -1,23 +1,17 @@
 from __future__ import annotations
-from dataclasses import dataclass
 import numpy as np
 
 
 class FaceDetector:
-    """Wraps insightface FaceAnalysis. Lazy-loads model weights on first detect() call."""
+    """Wraps insightface FaceAnalysis for face detection and landmark extraction."""
 
     def __init__(self) -> None:
-        self._app = None  # lazy
-
-    def _ensure_loaded(self) -> None:
-        if self._app is None:
-            from insightface.app import FaceAnalysis
-            self._app = FaceAnalysis(providers=["CPUExecutionProvider"])
-            self._app.prepare(ctx_id=0, det_size=(640, 640))
+        from insightface.app import FaceAnalysis
+        self._app = FaceAnalysis(providers=["CPUExecutionProvider"])
+        self._app.prepare(ctx_id=0, det_size=(640, 640))
 
     def detect(self, img: np.ndarray) -> list:
         """Return list of insightface Face objects detected in img (RGB uint8)."""
-        self._ensure_loaded()
         return self._app.get(img)
 
 
@@ -28,43 +22,30 @@ class ArcFaceEmbedder:
         self._detector = detector
 
     def embed(self, img: np.ndarray) -> np.ndarray | None:
-        """Return 512-dim float32 embedding for the first detected face, or None."""
+        """Return 512-dim embedding for the first detected face, or None."""
         faces = self._detector.detect(img)
         if not faces:
             return None
         return faces[0].normed_embedding.astype(np.float32)
 
 
+# Task 6 — DetectionResult and SqueezeDetector
+from dataclasses import dataclass
 from squeezers import BaseSqueezer
 
 
-@dataclass(frozen=True)
+@dataclass
 class DetectionResult:
-    """Outcome of a SqueezeDetector.detect() call. Immutable."""
-
     is_adversarial: bool
     max_shift: float
     sims: dict[str, float]
     squeezed_imgs: dict[str, np.ndarray]
 
-    def __repr__(self) -> str:
-        verdict = "ADVERSARIAL" if self.is_adversarial else "CLEAN"
-        sim_str = ", ".join(f"{k}={v:.3f}" for k, v in self.sims.items())
-        return f"DetectionResult({verdict}, shift={self.max_shift:.3f}, [{sim_str}])"
-
 
 class SqueezeDetector:
-    """Detects adversarial inputs via ArcFace embedding shift after feature squeezing.
+    """Detects adversarial inputs by measuring ArcFace embedding shift after squeezing."""
 
-    Algorithm (Xu et al., NDSS 2018):
-        1. Embed the original and attacked images.
-        2. Apply each squeezer to the attacked image and embed the result.
-        3. Compute cosine similarity of every embedding against `target_embed`.
-        4. The per-squeezer shift is |sim_squeezed - sim_attacked|.
-        5. Flag the input as adversarial if max(shifts) > threshold.
-    """
-
-    _SQUEEZER_KEYS: tuple[str, str] = ("bit", "median")
+    _SQUEEZER_KEYS = ("bit", "median")
 
     def __init__(
         self,
@@ -73,19 +54,10 @@ class SqueezeDetector:
         threshold: float = 0.50,
     ) -> None:
         if len(squeezers) != 2:
-            raise ValueError(
-                f"Exactly 2 squeezers required (bit, median), got {len(squeezers)}"
-            )
+            raise ValueError("Exactly 2 squeezers required (bit, median)")
         self._embedder = embedder
         self._squeezers = squeezers
         self._threshold = threshold
-
-    def _embed_or_fallback(
-        self, img: np.ndarray, fallback: np.ndarray
-    ) -> np.ndarray:
-        """Embed `img`, returning `fallback` if no face is detected."""
-        embed = self._embedder.embed(img)
-        return embed if embed is not None else fallback
 
     def detect(
         self,
@@ -93,27 +65,30 @@ class SqueezeDetector:
         original_img: np.ndarray,
         attacked_img: np.ndarray,
     ) -> DetectionResult:
-        embed_original = self._embed_or_fallback(original_img, target_embed)
-        embed_attacked = self._embed_or_fallback(attacked_img, target_embed)
+        _orig = self._embedder.embed(original_img)
+        embed_original = target_embed if _orig is None else _orig
+        _att = self._embedder.embed(attacked_img)
+        embed_attacked = target_embed if _att is None else _att
 
-        squeezed_imgs: dict[str, np.ndarray] = {
+        squeezed_imgs = {
             key: sq.squeeze(attacked_img)
             for key, sq in zip(self._SQUEEZER_KEYS, self._squeezers)
         }
-        squeezed_embeds: dict[str, np.ndarray] = {
-            key: self._embed_or_fallback(img, target_embed)
-            for key, img in squeezed_imgs.items()
-        }
+        squeezed_embeds = {}
+        for key, img in squeezed_imgs.items():
+            e = self._embedder.embed(img)
+            squeezed_embeds[key] = target_embed if e is None else e
 
-        sims: dict[str, float] = {
+        sims = {
             "original": float(np.dot(target_embed, embed_original)),
             "attacked": float(np.dot(target_embed, embed_attacked)),
-            "bit": float(np.dot(target_embed, squeezed_embeds["bit"])),
-            "median": float(np.dot(target_embed, squeezed_embeds["median"])),
+            "bit":      float(np.dot(target_embed, squeezed_embeds["bit"])),
+            "median":   float(np.dot(target_embed, squeezed_embeds["median"])),
         }
 
         sim_attacked = sims["attacked"]
-        max_shift = max(abs(sims[k] - sim_attacked) for k in self._SQUEEZER_KEYS)
+        shifts = [abs(sims[k] - sim_attacked) for k in ("bit", "median")]
+        max_shift = max(shifts)
 
         return DetectionResult(
             is_adversarial=max_shift > self._threshold,
