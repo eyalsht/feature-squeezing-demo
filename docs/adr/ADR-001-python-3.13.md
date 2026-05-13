@@ -31,7 +31,7 @@ Target **Python 3.13** for development and Hugging Face Spaces deployment. Bump 
 - ✓ All deps install cleanly on a fresh `py -3.13 -m venv` venv.
 - ⚠ HF Spaces must be configured for Python 3.13 (set `python_version: "3.13"` in the README YAML header or use a `runtime.txt`).
 - ⚠ `numpy 2.x` is a major-version bump from 1.26; any future code using deprecated 1.x-only APIs would need updating. The current scaffold uses only basic array ops, so no migration needed.
-- ⚠ If `insightface==0.7.3` itself breaks on 3.13 during install (it transitively pulls older `onnx`), fall back to leaving `insightface` unpinned and re-pinning the resolved version.
+- ⚠ `insightface==0.7.3` is **source-only on PyPI** for all Python versions — no prebuilt wheel exists. Its `thirdparty/face3d/mesh/cython/mesh_core_cython` extension must be compiled at install time. This requires **Microsoft Visual C++ Build Tools** on Windows (install "Desktop development with C++" workload from <https://visualstudio.microsoft.com/visual-cpp-build-tools/>). One-time per machine; not specific to Python 3.13.
 
 ## See also
 

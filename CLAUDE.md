@@ -21,6 +21,8 @@ Canonical references:
 
 ## Setup
 
+**Prerequisite (Windows):** Microsoft Visual C++ Build Tools, "Desktop development with C++" workload — needed to build `insightface`'s cython extension. Download from <https://visualstudio.microsoft.com/visual-cpp-build-tools/>. See [ADR-001](docs/adr/ADR-001-python-3.13.md#consequences).
+
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
