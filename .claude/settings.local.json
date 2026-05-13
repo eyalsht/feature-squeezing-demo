@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pip list)",
+      "Bash(pip show:*)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge --no-ff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)",
+      "PowerShell(./scripts/dev.ps1:*)",
+      "PowerShell(.\\scripts\\dev.ps1:*)"
+    ]
+  }
+}
