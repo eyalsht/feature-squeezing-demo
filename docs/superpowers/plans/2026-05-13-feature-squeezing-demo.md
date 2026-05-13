@@ -6,7 +6,7 @@
 
 **Architecture:** Five OOP modules (`squeezers.py`, `attack.py`, `detector.py`, `dataset.py`, `app.py`) wired by dependency injection. Business logic is fully unit-tested with mocked insightface. Gradio Blocks renders a two-tab UI: Pipeline Demo and Verify Identity. Matplotlib figures render all visualisations styled to the dark theme.
 
-**Tech Stack:** Python 3.10, Gradio 4.x, insightface (ArcFace buffalo_l), onnxruntime, numpy, scipy, Pillow, matplotlib, pytest, pytest-mock
+**Tech Stack:** Python 3.13, Gradio 4.x, insightface (ArcFace buffalo_l), onnxruntime, numpy, scipy, Pillow, matplotlib, pytest, pytest-mock
 
 ---
 
@@ -112,7 +112,7 @@ pinned: false
 
 # Feature Squeezing: Defeating Adversarial Glasses
 
-Interactive demo for HUP Seminar. Demonstrates how Feature Squeezing (Xu et al., NDSS 2018)
+Interactive demo for Seminar. Demonstrates how Feature Squeezing (Xu et al., NDSS 2018)
 detects adversarial examples crafted via simulated physical glasses attacks (Sharif et al., CCS 2016).
 ```
 
