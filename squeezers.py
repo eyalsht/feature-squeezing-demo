@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import numpy as np
+from scipy.ndimage import median_filter
 
 
 class BaseSqueezer(ABC):
@@ -22,3 +23,17 @@ class BitDepthSqueezer(BaseSqueezer):
         step = 256 // levels
         quantised = (img.astype(np.uint16) // step) * step
         return np.clip(quantised, 0, 255).astype(np.uint8)
+
+
+class MedianFilterSqueezer(BaseSqueezer):
+    def __init__(self, kernel: int = 3) -> None:
+        if kernel % 2 == 0:
+            raise ValueError(f"kernel must be odd, got {kernel}")
+        self.kernel = kernel
+
+    def squeeze(self, img: np.ndarray) -> np.ndarray:
+        result = np.stack([
+            median_filter(img[:, :, c], size=self.kernel)
+            for c in range(img.shape[2])
+        ], axis=2)
+        return result.astype(np.uint8)

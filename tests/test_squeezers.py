@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from squeezers import BitDepthSqueezer
+from squeezers import BitDepthSqueezer, MedianFilterSqueezer
 
 
 def test_bit_depth_squeezer_reduces_unique_values():
@@ -29,3 +29,26 @@ def test_bit_depth_squeezer_8_bits_is_identity():
     img = np.random.randint(0, 256, (64, 64, 3), dtype=np.uint8)
     result = BitDepthSqueezer(bits=8).squeeze(img)
     np.testing.assert_array_equal(result, img)
+
+
+def test_median_squeezer_removes_salt_and_pepper(blank_face_img):
+    noisy = blank_face_img.copy()
+    rng = np.random.default_rng(42)
+    coords = rng.integers(0, 160, size=(200, 2))
+    noisy[coords[:, 0], coords[:, 1]] = 255
+    squeezer = MedianFilterSqueezer(kernel=3)
+    result = squeezer.squeeze(noisy)
+    diff_noisy = np.mean(np.abs(noisy.astype(int) - blank_face_img.astype(int)))
+    diff_result = np.mean(np.abs(result.astype(int) - blank_face_img.astype(int)))
+    assert diff_result < diff_noisy
+
+
+def test_median_squeezer_preserves_shape(blank_face_img):
+    result = MedianFilterSqueezer(kernel=5).squeeze(blank_face_img)
+    assert result.shape == blank_face_img.shape
+    assert result.dtype == np.uint8
+
+
+def test_median_squeezer_rejects_even_kernel():
+    with pytest.raises(ValueError, match="odd"):
+        MedianFilterSqueezer(kernel=4)
