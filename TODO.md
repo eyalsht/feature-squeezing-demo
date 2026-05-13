@@ -43,8 +43,8 @@ Deliverables: `attack.py`, `tests/test_attack.py`
 
 **Goal:** `FaceDetector`, `ArcFaceEmbedder`, `SqueezeDetector`, `DetectionResult` implemented and unit-tested (insightface mocked).
 
-- [ ] Task 5 — `FaceDetector` + `ArcFaceEmbedder` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-5--facedetector-and-arcfaceembedder))
-- [ ] Task 6 — `SqueezeDetector` + `DetectionResult` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-6--detectionresult-and-squeezedetector))
+- [x] Task 5 — `FaceDetector` + `ArcFaceEmbedder` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-5--facedetector-and-arcfaceembedder)) `@eyal eyal/phase-3-detector`
+- [x] Task 6 — `SqueezeDetector` + `DetectionResult` ([per-step plan](docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md#task-6--detectionresult-and-squeezedetector)) `@eyal eyal/phase-3-detector`
 
 Deliverables: `detector.py`, `tests/test_detector.py`
 
