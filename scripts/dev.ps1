@@ -23,7 +23,8 @@ switch ($Task) {
         pip install -r requirements.txt
         if ($LASTEXITCODE -ne 0) { throw "install failed" }
         pytest -v
-        if ($LASTEXITCODE -ne 0) { throw "pytest failed" }
+        # pytest exit 5 = no tests collected; acceptable until Phase 1 lands test files
+        if ($LASTEXITCODE -notin @(0, 5)) { throw "pytest failed (exit $LASTEXITCODE)" }
         python -c "import numpy, scipy, PIL, matplotlib, gradio, insightface, onnxruntime; print('imports OK')"
     }
     default {
