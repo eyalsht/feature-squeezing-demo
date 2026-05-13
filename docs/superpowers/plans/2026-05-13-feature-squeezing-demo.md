@@ -6,7 +6,7 @@
 
 **Architecture:** Five OOP modules (`squeezers.py`, `attack.py`, `detector.py`, `dataset.py`, `app.py`) wired by dependency injection. Business logic is fully unit-tested with mocked insightface. Gradio Blocks renders a two-tab UI: Pipeline Demo and Verify Identity. Matplotlib figures render all visualisations styled to the dark theme.
 
-**Tech Stack:** Python 3.10, Gradio 4.x, insightface (ArcFace buffalo_l), onnxruntime, numpy, scipy, Pillow, matplotlib, pytest, pytest-mock
+**Tech Stack:** Python 3.13, Gradio 4.x, insightface (ArcFace buffalo_l), onnxruntime, numpy, scipy, Pillow, matplotlib, pytest, pytest-mock
 
 ---
 
