@@ -1,5 +1,7 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import numpy as np
+from squeezers import BaseSqueezer
 
 
 class FaceDetector:
@@ -29,12 +31,7 @@ class ArcFaceEmbedder:
         return faces[0].normed_embedding.astype(np.float32)
 
 
-# Task 6 — DetectionResult and SqueezeDetector
-from dataclasses import dataclass
-from squeezers import BaseSqueezer
-
-
-@dataclass
+@dataclass(frozen=True)
 class DetectionResult:
     is_adversarial: bool
     max_shift: float
