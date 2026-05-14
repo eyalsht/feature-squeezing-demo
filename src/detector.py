@@ -2,13 +2,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 from squeezers import BaseSqueezer
+from insightface.app import FaceAnalysis
+
 
 
 class FaceDetector:
     """Wraps insightface FaceAnalysis for face detection and landmark extraction."""
 
     def __init__(self) -> None:
-        from insightface.app import FaceAnalysis
         self._app = FaceAnalysis(providers=["CPUExecutionProvider"])
         self._app.prepare(ctx_id=0, det_size=(640, 640))
 
