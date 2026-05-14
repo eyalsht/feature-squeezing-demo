@@ -5,7 +5,6 @@ from squeezers import BaseSqueezer
 from insightface.app import FaceAnalysis
 
 
-
 class FaceDetector:
     """Wraps insightface FaceAnalysis for face detection and landmark extraction."""
 
@@ -41,9 +40,11 @@ class DetectionResult:
 
 
 class SqueezeDetector:
-    """Detects adversarial inputs by measuring ArcFace embedding shift after squeezing."""
+    """Detects adversarial inputs via Xu et al. (NDSS 2018) self-shift criterion.
 
-    _SQUEEZER_KEYS = ("bit", "median")
+    For each squeezer s_i, compute d_i = 1 - cos(embed(x), embed(s_i(x))).
+    Flag adversarial when max_i d_i exceeds threshold.
+    """
 
     def __init__(
         self,
@@ -51,8 +52,8 @@ class SqueezeDetector:
         squeezers: list[BaseSqueezer],
         threshold: float = 0.50,
     ) -> None:
-        if len(squeezers) != 2:
-            raise ValueError("Exactly 2 squeezers required (bit, median)")
+        if not squeezers:
+            raise ValueError("At least one squeezer required")
         self._embedder = embedder
         self._squeezers = squeezers
         self._threshold = threshold
@@ -68,24 +69,20 @@ class SqueezeDetector:
         _att = self._embedder.embed(attacked_img)
         embed_attacked = target_embed if _att is None else _att
 
-        squeezed_imgs = {
-            key: sq.squeeze(attacked_img)
-            for key, sq in zip(self._SQUEEZER_KEYS, self._squeezers)
-        }
-        squeezed_embeds = {}
-        for key, img in squeezed_imgs.items():
+        squeezed_imgs = {sq.name: sq.squeeze(attacked_img) for sq in self._squeezers}
+        squeezed_embeds: dict[str, np.ndarray] = {}
+        for name, img in squeezed_imgs.items():
             e = self._embedder.embed(img)
-            squeezed_embeds[key] = target_embed if e is None else e
+            squeezed_embeds[name] = embed_attacked if e is None else e
 
-        sims = {
+        sims: dict[str, float] = {
             "original": float(np.dot(target_embed, embed_original)),
             "attacked": float(np.dot(target_embed, embed_attacked)),
-            "bit":      float(np.dot(target_embed, squeezed_embeds["bit"])),
-            "median":   float(np.dot(target_embed, squeezed_embeds["median"])),
         }
+        for name, e in squeezed_embeds.items():
+            sims[name] = float(np.dot(target_embed, e))
 
-        sim_attacked = sims["attacked"]
-        shifts = [abs(sims[k] - sim_attacked) for k in ("bit", "median")]
+        shifts = [1.0 - float(np.dot(embed_attacked, e)) for e in squeezed_embeds.values()]
         max_shift = max(shifts)
 
         return DetectionResult(
