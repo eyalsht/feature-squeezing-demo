@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from squeezers import BitDepthSqueezer, MedianFilterSqueezer
+from squeezers import BitDepthSqueezer, MedianFilterSqueezer, NonLocalMeansSqueezer
 
 
 def test_bit_depth_squeezer_reduces_unique_values():
@@ -52,3 +52,29 @@ def test_median_squeezer_preserves_shape(blank_face_img):
 def test_median_squeezer_rejects_even_kernel():
     with pytest.raises(ValueError, match="odd"):
         MedianFilterSqueezer(kernel=4)
+
+
+def test_nlm_squeezer_preserves_shape_and_dtype(blank_face_img):
+    result = NonLocalMeansSqueezer().squeeze(blank_face_img)
+    assert result.shape == blank_face_img.shape
+    assert result.dtype == np.uint8
+
+
+def test_nlm_squeezer_smooths_gaussian_noise(blank_face_img):
+    rng = np.random.default_rng(0)
+    noise = rng.normal(0, 20, blank_face_img.shape)
+    noisy = np.clip(blank_face_img.astype(int) + noise, 0, 255).astype(np.uint8)
+    result = NonLocalMeansSqueezer(strength=15).squeeze(noisy)
+    diff_noisy = np.mean(np.abs(noisy.astype(int) - blank_face_img.astype(int)))
+    diff_result = np.mean(np.abs(result.astype(int) - blank_face_img.astype(int)))
+    assert diff_result < diff_noisy
+
+
+def test_nlm_squeezer_rejects_even_window():
+    with pytest.raises(ValueError, match="odd"):
+        NonLocalMeansSqueezer(template_window=4)
+
+
+def test_nlm_squeezer_rejects_nonpositive_strength():
+    with pytest.raises(ValueError, match="strength"):
+        NonLocalMeansSqueezer(strength=0)
