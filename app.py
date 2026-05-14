@@ -50,7 +50,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from detector import FaceDetector, ArcFaceEmbedder, SqueezeDetector
-from squeezers import BitDepthSqueezer, MedianFilterSqueezer
+from squeezers import BitDepthSqueezer, MedianFilterSqueezer, NonLocalMeansSqueezer
 from dataset import IdentityDatabase
 from attack import Face, GlassesAttacker
 
@@ -220,7 +220,11 @@ input[type=range] {
 def _build_services():
     detector = FaceDetector()
     embedder = ArcFaceEmbedder(detector)
-    squeezers = [BitDepthSqueezer(bits=4), MedianFilterSqueezer(kernel=3)]
+    squeezers = [
+        BitDepthSqueezer(bits=4),
+        MedianFilterSqueezer(kernel=3),
+        NonLocalMeansSqueezer(strength=11),
+    ]
     squeeze_detector = SqueezeDetector(embedder=embedder, squeezers=squeezers)
     db = IdentityDatabase(embedder=embedder, dataset_path="dataset")
     db.load()
@@ -261,13 +265,16 @@ _STAGE_COLORS = {
     "attacked": "#ef4444",
     "bit":      "#fbbf24",
     "median":   "#10b981",
+    "nlm":      "#38bdf8",
 }
 _STAGE_LABELS = {
     "original": "ORIGINAL",
     "attacked": "ADV. GLASSES",
     "bit":      "BIT SQUEEZED",
     "median":   "MEDIAN FILTER",
+    "nlm":      "NON-LOCAL MEANS",
 }
+_PIPELINE_KEYS = ["original", "attacked", "bit", "median", "nlm"]
 
 
 def _style_image_axis(ax, color: str, title: str, sim: float | None) -> None:
@@ -287,10 +294,10 @@ def _render_pipeline_figure(
     imgs: dict[str, np.ndarray | None],
     sims: dict[str, float],
 ) -> plt.Figure:
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4))
+    fig, axes = plt.subplots(1, len(_PIPELINE_KEYS), figsize=(16.5, 3.6))
     fig.patch.set_facecolor(_BG)
 
-    for ax, key in zip(axes, ["original", "attacked", "bit", "median"]):
+    for ax, key in zip(axes, _PIPELINE_KEYS):
         color = _STAGE_COLORS[key]
         ax.set_facecolor(_PANEL)
         img = imgs.get(key)
@@ -306,12 +313,12 @@ def _render_pipeline_figure(
 
 
 def _render_similarity_bars(sims: dict[str, float]) -> plt.Figure:
-    keys   = ["original", "attacked", "bit", "median"]
+    keys   = _PIPELINE_KEYS
     labels = [_STAGE_LABELS[k] for k in keys]
     values = [sims.get(k, 0.0) for k in keys]
     colors = [_STAGE_COLORS[k] for k in keys]
 
-    fig, ax = plt.subplots(figsize=(11, 2.8))
+    fig, ax = plt.subplots(figsize=(11, 3.2))
     fig.patch.set_facecolor(_BG)
     ax.set_facecolor(_BG)
 
@@ -424,7 +431,7 @@ def _verdict_html(is_adversarial: bool, max_shift: float) -> str:
 
 # ── Tab 1 handlers ───────────────────────────────────────────────────────────
 
-_EMPTY_KEYS = ["original", "attacked", "bit", "median"]
+_EMPTY_KEYS = _PIPELINE_KEYS
 
 
 def on_identity_select(name: str):
@@ -459,8 +466,9 @@ def on_attack(original_img, target_embed, bits, kernel):
     attacked = attacker.apply(original_img, face)
 
     empty_sims = {k: 0.0 for k in _EMPTY_KEYS}
-    imgs = {"original": original_img, "attacked": attacked,
-            "bit": None, "median": None}
+    imgs = {k: None for k in _EMPTY_KEYS}
+    imgs["original"] = original_img
+    imgs["attacked"] = attacked
     return (
         _render_pipeline_figure(imgs, empty_sims),
         _render_similarity_bars(empty_sims),
@@ -476,6 +484,7 @@ def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
     squeezers = [
         BitDepthSqueezer(bits=int(bits)),
         MedianFilterSqueezer(kernel=int(kernel)),
+        NonLocalMeansSqueezer(strength=11),
     ]
     local_detector = SqueezeDetector(EMBEDDER, squeezers)
     result = local_detector.detect(target_embed, original_img, attacked_img)
@@ -485,6 +494,7 @@ def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
         "attacked": attacked_img,
         "bit":      result.squeezed_imgs["bit"],
         "median":   result.squeezed_imgs["median"],
+        "nlm":      result.squeezed_imgs["nlm"],
     }
     return (
         _render_pipeline_figure(imgs, result.sims),
@@ -752,7 +762,7 @@ def build_app() -> gr.Blocks:
         <div style="text-align:center;color:#475569;font-size:10px;
                     letter-spacing:1.5px;text-transform:uppercase;
                     margin-top:24px;padding:16px 0;">
-          HUP Seminar &middot; imree &amp; Eyal &middot;
+          HUP Seminar &middot;  &amp;  &middot;
           ArcFace + Feature Squeezing
         </div>
         """)
