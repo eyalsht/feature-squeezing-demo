@@ -230,3 +230,34 @@ def register_identity(name: str, img1: np.ndarray, img2: np.ndarray, state: dict
 - Stored as JPEGs in `dataset/` folder in the repo
 - Selection criteria: clear frontal face, good lighting, varied demographics
 - Live registration: 1 additional identity can be added during the session (2 photo uploads required); session state only, not persisted
+
+---
+
+## 10. Threshold rationale
+
+The demo surfaces **two distinct thresholds** with different origins:
+
+### Identity-match threshold — 0.72 (bar chart)
+
+The bar chart in the Pipeline Demo tab now shows **0.72** as the primary
+"recognised / rejected" line. This value comes from the ArcFace paper
+(Deng et al., 2019) calibrated on LFW: at cosine similarity ≥ 0.72 the
+model declares the same identity with ~99.8 % accuracy.
+
+A secondary faint line at **0.50** is retained as a "demo default" reference.
+It was a convenient round number used during development but is *not*
+ROC-calibrated; it is shown only so viewers understand the original threshold
+displayed in earlier versions of the demo.
+
+### Self-shift detection threshold — 0.50 (SqueezeDetector)
+
+`SqueezeDetector.detect()` computes the *self-shift*: how much the embedding
+of the squeezed image drifts from the embedding of the attacked image.
+This quantity is conceptually different from identity-match similarity —
+it measures whether squeezing perturbs the embedding more than a clean image
+would expect. The Xu et al. (NDSS 2018) paper uses an empirically chosen
+threshold; 0.50 is the value inherited from the per-step plan and is left
+unchanged here.
+
+**The defense-verdict panel in the UI explicitly labels these as separate
+quantities so the audience is not confused.**
