@@ -230,3 +230,40 @@ def register_identity(name: str, img1: np.ndarray, img2: np.ndarray, state: dict
 - Stored as JPEGs in `dataset/` folder in the repo
 - Selection criteria: clear frontal face, good lighting, varied demographics
 - Live registration: 1 additional identity can be added during the session (2 photo uploads required); session state only, not persisted
+
+---
+
+## Addendum — Attack Lab tab (additive scope)
+
+**Date added:** 2026-05-16  
+**Sign-off:** Eyal (per plan at `docs/superpowers/plans/2026-05-13-feature-squeezing-demo.md`)
+
+### What was added
+
+A third tab, **⚗ Attack Lab**, providing a gradient-based impersonation attack as an educational supplement to the existing simulated random-noise attack in Pipeline Demo.
+
+### Scope
+
+- **Additive only.** The Pipeline Demo and Verify Identity tabs are unchanged.
+- `GlassesAttacker`, `SqueezeDetector`, and all existing pipeline logic are unmodified.
+
+### Implementation
+
+| Component | Description |
+|-----------|-------------|
+| `src/attack_lab.py` | New module — `ImpersonationAttacker` + `AttackResult` dataclass |
+| Surrogate model | `facenet_pytorch.InceptionResnetV1(pretrained='vggface2')` via `facenet-pytorch` pip package |
+| Evaluator model | Existing `ArcFaceEmbedder` (insightface buffalo_l, unchanged) |
+| Attack algorithm | PGD-style gradient descent on a learnable `delta` clipped to `[-eps_pixel, eps_pixel]`; loss = `cos_dist(surrogate(x_adv), surrogate(target)) + λ_tv * TV(delta * mask)` |
+| Glasses mask | `make_glasses_mask` from `src/attack.py` (same as Pipeline Demo) |
+
+### Surrogate-vs-evaluator gap (honest caveat)
+
+The surrogate (VGGFace2 InceptionResnetV1) and the evaluator (ArcFace buffalo_l) use different training datasets and architectures. Transfer is imperfect. The UI surfaces **both** similarity scores — `sim_after_torch` (surrogate) and `sim_after` (ArcFace evaluator) — so audiences can observe the black-box transferability gap directly. This is itself a pedagogically valuable finding from the adversarial ML literature.
+
+### Dependencies added
+
+- `torch>=2.0.0` (CPU build)
+- `facenet-pytorch>=2.5.3`
+
+Note: `facenet-pytorch` declares `numpy<2.0` as a constraint but is compatible at runtime with `numpy>=2.1`. Both packages are installed `--no-deps` in this repo's venv to avoid the constraint conflict; the HF Spaces deployment should pin appropriately.
