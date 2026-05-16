@@ -90,8 +90,33 @@ body, .gradio-container {
 
 .gradio-container {
   max-width: 1180px !important;
+  width: 100% !important;
   margin: 0 auto !important;
   padding: 16px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+
+/* Registration photo upload boxes */
+.reg-photo-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 6px 0 2px;
+}
+.reg-photo { min-height: 160px !important; }
+.reg-photo .image-container,
+.reg-photo .wrap { min-height: 140px !important; }
+
+/* Responsive: shrink padding/gaps on narrow viewports */
+@media (max-width: 1100px) {
+  .gradio-container { padding: 10px !important; }
+  .gr-row { gap: 8px !important; }
+}
+@media (max-width: 820px) {
+  .gradio-container { padding: 6px !important; font-size: 13px; }
 }
 
 /* Panels & boxes */
@@ -681,7 +706,7 @@ def on_verify(photo_a, photo_b):
 
 def build_app() -> gr.Blocks:
     with gr.Blocks(css=CSS, title="Feature Squeezing Demo",
-                   theme=gr.themes.Base()) as demo:
+                   theme=gr.themes.Base(), fill_width=True) as demo:
 
         # Header
         gr.HTML("""
@@ -745,13 +770,21 @@ def build_app() -> gr.Blocks:
                             'margin-bottom:8px;font-weight:700;">'
                             '&#43; Register Face</div>'
                         )
-                        reg_photo1 = gr.Image(label="Photo 1", height=80, type="numpy")
                         gr.Markdown(
-                            "<small style='color:#64748b'>Clear frontal face photo</small>",
+                            "<div class='reg-photo-label'>Photo 1</div>"
+                            "<small style='color:#64748b'>Clear frontal face photo</small>"
                         )
-                        reg_photo2 = gr.Image(label="Photo 2", height=80, type="numpy")
+                        reg_photo1 = gr.Image(
+                            show_label=False, height=160, type="numpy",
+                            elem_classes=["reg-photo"],
+                        )
                         gr.Markdown(
-                            "<small style='color:#64748b'>Second photo (different angle)</small>",
+                            "<div class='reg-photo-label'>Photo 2</div>"
+                            "<small style='color:#64748b'>Second photo (different angle)</small>"
+                        )
+                        reg_photo2 = gr.Image(
+                            show_label=False, height=160, type="numpy",
+                            elem_classes=["reg-photo"],
                         )
                         reg_name   = gr.Textbox(
                             label="Name", placeholder="Your name",
