@@ -438,6 +438,59 @@ def _verdict_html(is_adversarial: bool, max_shift: float) -> str:
     </div>"""
 
 
+# ── Defense verdict panel ────────────────────────────────────────────────────
+
+_DEFENSE_KEYS   = ["bit", "median", "nlm"]
+_DEFENSE_LABELS = {
+    "bit":    "Bit-Squeezed",
+    "median": "Median Filter",
+    "nlm":    "Non-Local Means",
+}
+_PAPER_THRESHOLD = 0.72  # ArcFace / LFW calibrated threshold (Deng et al., 2019)
+
+
+def _defense_verdict_html(sims: dict[str, float]) -> str:
+    """Build per-defense ✅/❌ HTML verdict panel using the 0.72 paper threshold."""
+    rows_html = ""
+    best_key = min(_DEFENSE_KEYS, key=lambda k: sims.get(k, 1.0))
+    for key in _DEFENSE_KEYS:
+        sim = sims.get(key, 0.0)
+        passed = sim < _PAPER_THRESHOLD
+        icon  = "✅" if passed else "❌"
+        color = "#10b981" if passed else "#ef4444"
+        label = _DEFENSE_LABELS[key]
+        rows_html += (
+            f'<div style="display:flex;align-items:center;gap:10px;'
+            f'margin-bottom:6px;">'
+            f'<span style="font-size:18px;">{icon}</span>'
+            f'<span style="color:{color};font-weight:700;font-size:13px;">{label}</span>'
+            f'<span style="color:#94a3b8;font-size:12px;">sim = {sim:+.3f}</span>'
+            f'</div>'
+        )
+    best_label = _DEFENSE_LABELS[best_key]
+    best_sim   = sims.get(best_key, 0.0)
+    summary = (
+        f'<div style="margin-top:10px;padding-top:10px;'
+        f'border-top:1px solid rgba(255,255,255,0.08);'
+        f'color:#94a3b8;font-size:11px;letter-spacing:0.3px;">'
+        f'<strong style="color:#a78bfa;">{best_label}</strong> is the most effective'
+        f' defense in this case (lowest similarity {best_sim:+.3f} to target).'
+        f'<br><em style="color:#64748b;">Self-shift detection threshold = 0.50 —'
+        f' separate Xu et al. signal, not recalibrated here.</em>'
+        f'</div>'
+    )
+    return (
+        '<div style="background:linear-gradient(135deg,rgba(167,139,250,0.10),'
+        'rgba(167,139,250,0.02));border:1px solid rgba(167,139,250,0.35);'
+        'border-radius:12px;padding:16px 22px;margin-top:8px;">'
+        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;'
+        'letter-spacing:2px;font-weight:700;margin-bottom:12px;">'
+        '&#128737; Defense Verdicts — threshold 0.72 (ArcFace / LFW)</div>'
+        + rows_html + summary +
+        '</div>'
+    )
+
+
 # ── Tab 1 handlers ───────────────────────────────────────────────────────────
 
 _EMPTY_KEYS = _PIPELINE_KEYS
@@ -488,7 +541,7 @@ def on_attack(original_img, target_embed, bits, kernel):
 
 def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
     if attacked_img is None or target_embed is None or original_img is None:
-        return gr.update(), gr.update(), gr.update(visible=False)
+        return gr.update(), gr.update(), gr.update(visible=False), gr.update(visible=False)
 
     squeezers = [
         BitDepthSqueezer(bits=int(bits)),
@@ -510,6 +563,7 @@ def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
         _render_similarity_bars(result.sims),
         gr.update(value=_verdict_html(result.is_adversarial, result.max_shift),
                   visible=True),
+        gr.update(value=_defense_verdict_html(result.sims), visible=True),
     )
 
 
@@ -703,7 +757,8 @@ def build_app() -> gr.Blocks:
                             "- **Above line = recognised; below = rejected."
                             " Lower similarity after defense = stronger defense.**"
                         )
-                        verdict_html  = gr.HTML(visible=False)
+                        verdict_html         = gr.HTML(visible=False)
+                        defense_verdict_html = gr.HTML(visible=False)
 
                 # Wire Tab 1 events
                 identity_dd.change(
@@ -724,7 +779,8 @@ def build_app() -> gr.Blocks:
                     fn=on_squeeze_detect,
                     inputs=[state_original_img, state_attacked_img,
                             state_target_embed, bits_slider, kernel_slider],
-                    outputs=[pipeline_plot, sim_plot, verdict_html],
+                    outputs=[pipeline_plot, sim_plot, verdict_html,
+                             defense_verdict_html],
                 )
                 reg_btn.click(
                     fn=on_register,
