@@ -52,7 +52,8 @@ import matplotlib.pyplot as plt
 from detector import FaceDetector, ArcFaceEmbedder, SqueezeDetector
 from squeezers import BitDepthSqueezer, MedianFilterSqueezer, NonLocalMeansSqueezer
 from dataset import IdentityDatabase
-from attack import Face, GlassesAttacker
+from attack import Face, GlassesAttacker, make_glasses_mask
+from attack_lab import ImpersonationAttacker
 
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
@@ -702,6 +703,186 @@ def on_verify(photo_a, photo_b):
     return _render_verification_figure(rows), ""
 
 
+# ── Tab 3 handler ────────────────────────────────────────────────────────────
+
+def _render_attack_lab_figure(
+    attacker_img: np.ndarray | None,
+    attacked_img: np.ndarray | None,
+    glasses_pattern: np.ndarray | None,
+) -> plt.Figure:
+    """3-panel figure: Attacker | Attacked | Glasses Pattern."""
+    panels = [
+        ("ATTACKER",         "#94a3b8", attacker_img),
+        ("ATTACKED",         "#ef4444", attacked_img),
+        ("GLASSES PATTERN",  "#fbbf24", glasses_pattern),
+    ]
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.4))
+    fig.patch.set_facecolor(_BG)
+    for ax, (title, color, img) in zip(axes, panels):
+        ax.set_facecolor(_PANEL)
+        if img is not None:
+            ax.imshow(img)
+        ax.set_xticks([]); ax.set_yticks([])
+        for side in ("left", "right", "bottom"):
+            ax.spines[side].set_visible(False)
+        ax.spines["top"].set_edgecolor(color)
+        ax.spines["top"].set_linewidth(3)
+        ax.set_title(title, color=color, fontsize=10, fontweight="700",
+                     pad=8, loc="left")
+    fig.tight_layout(pad=1.2)
+    return fig
+
+
+def _render_attack_lab_bars(sim_before: float, sim_after: float) -> plt.Figure:
+    """2-bar comparison chart with 0.72 paper + 0.50 demo threshold lines."""
+    fig, ax = plt.subplots(figsize=(7, 2.2))
+    fig.patch.set_facecolor(_BG)
+    ax.set_facecolor(_BG)
+    labels = ["BEFORE ATTACK", "AFTER ATTACK"]
+    values = [sim_before, sim_after]
+    colors = ["#94a3b8", "#ef4444"]
+    bars = ax.barh([0, 1], values, color=colors, height=0.5, alpha=0.9,
+                   edgecolor="none")
+    ax.axvline(x=0.72, color="#ef4444", linestyle="--", linewidth=2.2, alpha=1.0)
+    ax.text(0.73, 1.55, "Paper (ArcFace/LFW): 0.72",
+            color="#ef4444", fontsize=8, fontweight="700")
+    ax.axvline(x=0.50, color="#888", linestyle="--", linewidth=1.0, alpha=0.5)
+    ax.text(0.51, -0.7, "Demo default: 0.50",
+            color="#888", fontsize=8, alpha=0.65, fontweight="600")
+    ax.set_xlim(-0.05, 1.10)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(labels, color="#94a3b8", fontsize=10, fontweight="600")
+    ax.tick_params(axis="x", colors="#475569", labelsize=9)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    for bar, val, color in zip(bars, values, colors):
+        ax.text(bar.get_width() + 0.015, bar.get_y() + bar.get_height() / 2,
+                f"{val:+.3f}", va="center", color=color,
+                fontsize=12, fontweight="800")
+    fig.tight_layout()
+    return fig
+
+
+def on_attack_lab(attacker_photo, target_name: str, steps: int, lr: float,
+                  lambda_tv: float):
+    """Callback for the Attack Lab tab."""
+    attacker_img = _img_array(attacker_photo)
+    if attacker_img is None or not target_name:
+        return (
+            gr.update(),
+            gr.update(value="<div style='color:#fca5a5;font-size:12px;'>"
+                            "Upload attacker photo and select a target.</div>",
+                      visible=True),
+        )
+
+    target_identity = DB.get(target_name)
+    target_img = target_identity.photo
+
+    # Detect face to build the glasses mask
+    face = _detect_face(attacker_img)
+    if face is None:
+        return (
+            gr.update(),
+            gr.update(value="<div style='color:#fca5a5;font-size:12px;'>"
+                            "No face detected in attacker photo.</div>",
+                      visible=True),
+        )
+
+    mask = make_glasses_mask(attacker_img.shape, face)
+
+    attacker = ImpersonationAttacker(
+        lr=float(lr),
+        steps=int(steps),
+        lambda_tv=float(lambda_tv),
+    )
+    result = attacker.attack(attacker_img, target_img, mask,
+                             arc_embedder=EMBEDDER)
+
+    panel_fig = _render_attack_lab_figure(
+        attacker_img, result.attacked_img, result.glasses_pattern
+    )
+    bar_fig = _render_attack_lab_bars(result.sim_before, result.sim_after)
+
+    converged_note = (
+        "<span style='color:#10b981;font-weight:700;'>converged</span>"
+        if result.converged else
+        "<span style='color:#ef4444;font-weight:700;'>did not converge</span>"
+    )
+    caption_html = (
+        f"<div style='font-size:12px;color:#94a3b8;margin-top:6px;'>"
+        f"&#9888;&#65039; Impersonation attack &mdash; ArcFace identifies"
+        f" attacker as: <strong style='color:#fbbf24;'>{target_name}</strong>"
+        f" &nbsp;|&nbsp; {converged_note}"
+        f" &nbsp;|&nbsp; surrogate sim: {result.sim_after_torch:+.3f}"
+        f" (ArcFace eval: {result.sim_after:+.3f})"
+        f"</div>"
+    )
+    return (
+        gr.update(value={"panel": panel_fig, "bars": bar_fig}),
+        gr.update(value=caption_html, visible=True),
+    )
+
+
+def on_attack_lab_v2(attacker_photo, target_name: str, steps: int, lr: float,
+                     lambda_tv: float):
+    """Callback returning separate plot outputs."""
+    attacker_img = _img_array(attacker_photo)
+    if attacker_img is None or not target_name:
+        empty_fig = _render_attack_lab_figure(None, None, None)
+        empty_bars = _render_attack_lab_bars(0.0, 0.0)
+        return (
+            empty_fig, empty_bars,
+            gr.update(value="<div style='color:#fca5a5;font-size:12px;'>"
+                            "Upload attacker photo and select a target.</div>",
+                      visible=True),
+        )
+
+    target_identity = DB.get(target_name)
+    target_img = target_identity.photo
+
+    face = _detect_face(attacker_img)
+    if face is None:
+        empty_fig = _render_attack_lab_figure(attacker_img, None, None)
+        empty_bars = _render_attack_lab_bars(0.0, 0.0)
+        return (
+            empty_fig, empty_bars,
+            gr.update(value="<div style='color:#fca5a5;font-size:12px;'>"
+                            "No face detected in attacker photo.</div>",
+                      visible=True),
+        )
+
+    mask = make_glasses_mask(attacker_img.shape, face)
+
+    attacker = ImpersonationAttacker(
+        lr=float(lr),
+        steps=int(steps),
+        lambda_tv=float(lambda_tv),
+    )
+    result = attacker.attack(attacker_img, target_img, mask,
+                             arc_embedder=EMBEDDER)
+
+    panel_fig = _render_attack_lab_figure(
+        attacker_img, result.attacked_img, result.glasses_pattern
+    )
+    bar_fig = _render_attack_lab_bars(result.sim_before, result.sim_after)
+
+    converged_note = (
+        "<span style='color:#10b981;font-weight:700;'>converged</span>"
+        if result.converged else
+        "<span style='color:#ef4444;font-weight:700;'>did not converge</span>"
+    )
+    caption_html = (
+        f"<div style='font-size:12px;color:#94a3b8;margin-top:6px;'>"
+        f"&#9888;&#65039; Impersonation attack &mdash; ArcFace identifies"
+        f" attacker as: <strong style='color:#fbbf24;'>{target_name}</strong>"
+        f" &nbsp;|&nbsp; {converged_note}"
+        f" &nbsp;|&nbsp; surrogate sim: {result.sim_after_torch:+.3f}"
+        f" (ArcFace eval: {result.sim_after:+.3f})"
+        f"</div>"
+    )
+    return panel_fig, bar_fig, gr.update(value=caption_html, visible=True)
+
+
 # ── App layout ───────────────────────────────────────────────────────────────
 
 def build_app() -> gr.Blocks:
@@ -909,6 +1090,87 @@ def build_app() -> gr.Blocks:
                     fn=on_verify,
                     inputs=[verify_photo_a, verify_photo_b],
                     outputs=[verify_plot, verify_error],
+                )
+
+            # ── TAB 3 ────────────────────────────────────────────────────────
+            with gr.Tab("\u2697 Attack Lab"):
+                gr.HTML("""
+                <div style="color:#94a3b8;font-size:13px;padding:14px 4px 10px;
+                            line-height:1.55;">
+                  Gradient-based <strong style="color:#fbbf24;">impersonation
+                  attack</strong> &mdash; optimises adversarial glasses so that
+                  ArcFace mistakes the attacker for the chosen target identity.
+                  Based on Sharif et al. (CCS 2016).
+                </div>
+                """)
+                with gr.Row():
+                    # Left column: controls
+                    with gr.Column(scale=1, min_width=220):
+                        lab_attacker_photo = gr.Image(
+                            label="Attacker Photo",
+                            type="numpy", height=180,
+                        )
+                        gr.Markdown(
+                            "<small style='color:#64748b'>Clear frontal face photo</small>"
+                        )
+                        lab_target_dd = gr.Dropdown(
+                            choices=DB.names(),
+                            label="Target Identity",
+                            value=DB.names()[0] if DB.names() else None,
+                            info="Identity to impersonate.",
+                        )
+                        with gr.Group(elem_classes=["squeezer-card"]):
+                            gr.HTML(
+                                '<div style="font-size:10px;color:#fbbf24;'
+                                'text-transform:uppercase;letter-spacing:2.5px;'
+                                'margin-bottom:10px;font-weight:700;">'
+                                '&#9881; Attack Parameters</div>'
+                            )
+                            lab_steps = gr.Slider(
+                                50, 500, value=200, step=10,
+                                label="Steps",
+                                info="Optimisation iterations. More = stronger attack but slower.",
+                            )
+                            lab_lr = gr.Slider(
+                                0.005, 0.1, value=0.02, step=0.005,
+                                label="Learning Rate",
+                                info="Adam optimizer step size.",
+                            )
+                            lab_lambda_tv = gr.Slider(
+                                0.0, 0.1, value=0.01, step=0.005,
+                                label="\u03bb TV (regularisation)",
+                                info="Total-variation weight — reduces noise in glasses region.",
+                            )
+                        lab_run_btn = gr.Button(
+                            "\u2697 Run Impersonation Attack",
+                            elem_classes=["btn-attack"],
+                        )
+
+                    # Right column: outputs
+                    with gr.Column(scale=3):
+                        lab_panel_plot = gr.Plot(show_label=False)
+                        lab_caption    = gr.HTML(visible=False)
+                        lab_bars_plot  = gr.Plot(show_label=False)
+                        gr.Markdown(
+                            "- **0.72** — ArcFace paper threshold (LFW)."
+                            " Above = recognised as target.\n"
+                            "- **0.50** — Demo default.\n"
+                            "- Higher sim_after means the attack is succeeding."
+                        )
+                        gr.Markdown(
+                            "_Optimisation uses a PyTorch surrogate"
+                            " (VGGFace2 InceptionResnetV1);"
+                            " evaluation uses ArcFace buffalo\\_l."
+                            " Transfer may be imperfect — this is itself a"
+                            " finding from the literature on"
+                            " black-box transferability._"
+                        )
+
+                lab_run_btn.click(
+                    fn=on_attack_lab_v2,
+                    inputs=[lab_attacker_photo, lab_target_dd,
+                            lab_steps, lab_lr, lab_lambda_tv],
+                    outputs=[lab_panel_plot, lab_bars_plot, lab_caption],
                 )
 
         # Footer
