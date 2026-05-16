@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from attack import Face, GlassesAttacker
+from attack import Face, GlassesAttacker, make_glasses_mask
 
 
 def test_apply_changes_eye_region(blank_face_img, mock_face):
@@ -31,3 +31,12 @@ def test_make_glasses_mask_covers_eye_region(mock_face):
     eye_y = int(mock_face.kps[:2, 1].mean())
     assert mask[eye_y, 80, 0] == 1.0
     assert mask[155, 80, 0] == 0.0
+
+
+def test_module_level_make_glasses_mask_importable_and_correct_shape(mock_face):
+    """make_glasses_mask must be importable as a module-level public function."""
+    mask = make_glasses_mask((160, 160, 3), mock_face)
+    assert mask.shape == (160, 160, 1), "mask should have shape (H, W, 1)"
+    eye_y = int(mock_face.kps[:2, 1].mean())
+    assert mask[eye_y, 80, 0] == 1.0, "eye-centre pixel should be masked"
+    assert mask[155, 80, 0] == 0.0, "chin pixel should not be masked"

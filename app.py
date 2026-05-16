@@ -76,6 +76,7 @@ CSS = """
   --text-muted:  #64748b;
   --text-body:   #94a3b8;
   --text-bright: #e2e8f0;
+  --sim-font:    13px;
 }
 
 body, .gradio-container {
@@ -89,8 +90,33 @@ body, .gradio-container {
 
 .gradio-container {
   max-width: 1180px !important;
+  width: 100% !important;
   margin: 0 auto !important;
   padding: 16px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+
+/* Registration photo upload boxes */
+.reg-photo-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 6px 0 2px;
+}
+.reg-photo { min-height: 160px !important; }
+.reg-photo .image-container,
+.reg-photo .wrap { min-height: 140px !important; }
+
+/* Responsive: shrink padding/gaps on narrow viewports */
+@media (max-width: 1100px) {
+  .gradio-container { padding: 10px !important; }
+  .gr-row { gap: 8px !important; }
+}
+@media (max-width: 820px) {
+  .gradio-container { padding: 6px !important; font-size: 13px; }
 }
 
 /* Panels & boxes */
@@ -213,6 +239,23 @@ input[type=range] {
   background: transparent !important;
   border: none !important;
 }
+
+/* Similarity caption typography */
+.sim-caption {
+  font-size: var(--sim-font) !important;
+  color: var(--text-body) !important;
+  line-height: 1.55 !important;
+}
+
+/* Row / column spacing */
+.gr-row { gap: 14px !important; }
+.gr-column { padding: 0 8px !important; }
+
+/* Section header letter-spacing bump */
+.section-header {
+  letter-spacing: 2.5px !important;
+  line-height: 1.4 !important;
+}
 """
 
 # ── Service bootstrap ────────────────────────────────────────────────────────
@@ -306,7 +349,10 @@ def _render_pipeline_figure(
         sim = sims.get(key)
         # show sim under panel only if we have a real value (non-zero) and image present
         show_sim = sim if (img is not None and sim is not None and sim != 0.0) else None
-        _style_image_axis(ax, color, _STAGE_LABELS[key], show_sim)
+        title = _STAGE_LABELS[key]
+        if key == "attacked":
+            title = f"{title}  ⚠ ATTACK ACTIVE"
+        _style_image_axis(ax, color, title, show_sim)
 
     fig.tight_layout(pad=1.4)
     return fig
@@ -325,14 +371,23 @@ def _render_similarity_bars(sims: dict[str, float]) -> plt.Figure:
     y_pos = list(range(len(keys)))
     bars = ax.barh(y_pos, values, color=colors, height=0.55, alpha=0.92,
                    edgecolor="none")
-    ax.axvline(x=0.50, color="#ef4444", linestyle="--", linewidth=1.2, alpha=0.7)
+
+    # Paper-recommended ArcFace/LFW threshold — bold red
+    ax.axvline(x=0.72, color="#ef4444", linestyle="--", linewidth=2.4, alpha=1.0)
+    ax.text(0.73, len(keys) - 0.55,
+            "Paper (ArcFace, LFW): 0.72", color="#ef4444",
+            fontsize=8, alpha=1.0, fontweight="700")
+
+    # Demo default threshold — faint grey
+    ax.axvline(x=0.50, color="#888", linestyle="--", linewidth=1.0, alpha=0.5)
+    ax.text(0.51, -0.95, "Demo default: 0.50", color="#888",
+            fontsize=8, alpha=0.65, fontweight="600")
+
     ax.set_xlim(-0.05, 1.10)
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, color="#94a3b8", fontsize=10,
                        fontweight="600")
     ax.tick_params(axis="x", colors="#475569", labelsize=9)
-    ax.text(0.51, -0.95, "threshold 0.50", color="#ef4444",
-            fontsize=8, alpha=0.75, fontweight="600")
     for spine in ax.spines.values():
         spine.set_visible(False)
     for bar, val, color in zip(bars, values, colors):
@@ -429,6 +484,59 @@ def _verdict_html(is_adversarial: bool, max_shift: float) -> str:
     </div>"""
 
 
+# ── Defense verdict panel ────────────────────────────────────────────────────
+
+_DEFENSE_KEYS   = ["bit", "median", "nlm"]
+_DEFENSE_LABELS = {
+    "bit":    "Bit-Squeezed",
+    "median": "Median Filter",
+    "nlm":    "Non-Local Means",
+}
+_PAPER_THRESHOLD = 0.72  # ArcFace / LFW calibrated threshold (Deng et al., 2019)
+
+
+def _defense_verdict_html(sims: dict[str, float]) -> str:
+    """Build per-defense ✅/❌ HTML verdict panel using the 0.72 paper threshold."""
+    rows_html = ""
+    best_key = min(_DEFENSE_KEYS, key=lambda k: sims.get(k, 1.0))
+    for key in _DEFENSE_KEYS:
+        sim = sims.get(key, 0.0)
+        passed = sim < _PAPER_THRESHOLD
+        icon  = "✅" if passed else "❌"
+        color = "#10b981" if passed else "#ef4444"
+        label = _DEFENSE_LABELS[key]
+        rows_html += (
+            f'<div style="display:flex;align-items:center;gap:10px;'
+            f'margin-bottom:6px;">'
+            f'<span style="font-size:18px;">{icon}</span>'
+            f'<span style="color:{color};font-weight:700;font-size:13px;">{label}</span>'
+            f'<span style="color:#94a3b8;font-size:12px;">sim = {sim:+.3f}</span>'
+            f'</div>'
+        )
+    best_label = _DEFENSE_LABELS[best_key]
+    best_sim   = sims.get(best_key, 0.0)
+    summary = (
+        f'<div style="margin-top:10px;padding-top:10px;'
+        f'border-top:1px solid rgba(255,255,255,0.08);'
+        f'color:#94a3b8;font-size:11px;letter-spacing:0.3px;">'
+        f'<strong style="color:#a78bfa;">{best_label}</strong> is the most effective'
+        f' defense in this case (lowest similarity {best_sim:+.3f} to target).'
+        f'<br><em style="color:#64748b;">Self-shift detection threshold = 0.50 —'
+        f' separate Xu et al. signal, not recalibrated here.</em>'
+        f'</div>'
+    )
+    return (
+        '<div style="background:linear-gradient(135deg,rgba(167,139,250,0.10),'
+        'rgba(167,139,250,0.02));border:1px solid rgba(167,139,250,0.35);'
+        'border-radius:12px;padding:16px 22px;margin-top:8px;">'
+        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;'
+        'letter-spacing:2px;font-weight:700;margin-bottom:12px;">'
+        '&#128737; Defense Verdicts — threshold 0.72 (ArcFace / LFW)</div>'
+        + rows_html + summary +
+        '</div>'
+    )
+
+
 # ── Tab 1 handlers ───────────────────────────────────────────────────────────
 
 _EMPTY_KEYS = _PIPELINE_KEYS
@@ -479,7 +587,7 @@ def on_attack(original_img, target_embed, bits, kernel):
 
 def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
     if attacked_img is None or target_embed is None or original_img is None:
-        return gr.update(), gr.update(), gr.update(visible=False)
+        return gr.update(), gr.update(), gr.update(visible=False), gr.update(visible=False)
 
     squeezers = [
         BitDepthSqueezer(bits=int(bits)),
@@ -501,6 +609,7 @@ def on_squeeze_detect(original_img, attacked_img, target_embed, bits, kernel):
         _render_similarity_bars(result.sims),
         gr.update(value=_verdict_html(result.is_adversarial, result.max_shift),
                   visible=True),
+        gr.update(value=_defense_verdict_html(result.sims), visible=True),
     )
 
 
@@ -508,12 +617,22 @@ def on_register(name: str, photo1, photo2, db_state):
     img1 = _img_array(photo1)
     img2 = _img_array(photo2)
     if img1 is None or img2 is None or not name or not name.strip():
-        return db_state, gr.update()
+        raise gr.Error(
+            "Please upload both photos and enter a name before registering."
+        )
     try:
         DB.register(name.strip(), img1, img2)
-    except ValueError:
-        return db_state, gr.update()
-    return db_state, gr.update(choices=DB.names(), value=name.strip())
+    except ValueError as exc:
+        raise gr.Error(str(exc)) from exc
+    success_html = (
+        f"<span style='color:#10b981;font-weight:700;font-size:13px;'>"
+        f"✅ {name.strip()} registered successfully.</span>"
+    )
+    return (
+        db_state,
+        gr.update(choices=DB.names(), value=name.strip()),
+        gr.update(value=success_html, visible=True),
+    )
 
 
 # ── Tab 2 handler ────────────────────────────────────────────────────────────
@@ -587,7 +706,7 @@ def on_verify(photo_a, photo_b):
 
 def build_app() -> gr.Blocks:
     with gr.Blocks(css=CSS, title="Feature Squeezing Demo",
-                   theme=gr.themes.Base()) as demo:
+                   theme=gr.themes.Base(), fill_width=True) as demo:
 
         # Header
         gr.HTML("""
@@ -635,6 +754,7 @@ def build_app() -> gr.Blocks:
                             choices=DB.names(),
                             label="Target Identity",
                             value=DB.names()[0] if DB.names() else None,
+                            info="Select the registered identity to compare against.",
                         )
                         target_photo = gr.Image(
                             label="Selected", height=140, interactive=False,
@@ -650,11 +770,29 @@ def build_app() -> gr.Blocks:
                             'margin-bottom:8px;font-weight:700;">'
                             '&#43; Register Face</div>'
                         )
-                        reg_photo1 = gr.Image(label="Photo 1", height=80, type="numpy")
-                        reg_photo2 = gr.Image(label="Photo 2", height=80, type="numpy")
-                        reg_name   = gr.Textbox(label="Name", placeholder="Your name")
-                        reg_btn    = gr.Button("\u002B Register",
-                                               elem_classes=["btn-register"])
+                        gr.Markdown(
+                            "<div class='reg-photo-label'>Photo 1</div>"
+                            "<small style='color:#64748b'>Clear frontal face photo</small>"
+                        )
+                        reg_photo1 = gr.Image(
+                            show_label=False, height=160, type="numpy",
+                            elem_classes=["reg-photo"],
+                        )
+                        gr.Markdown(
+                            "<div class='reg-photo-label'>Photo 2</div>"
+                            "<small style='color:#64748b'>Second photo (different angle)</small>"
+                        )
+                        reg_photo2 = gr.Image(
+                            show_label=False, height=160, type="numpy",
+                            elem_classes=["reg-photo"],
+                        )
+                        reg_name   = gr.Textbox(
+                            label="Name", placeholder="Your name",
+                            info="Full name shown in the Target Identity dropdown.",
+                        )
+                        reg_btn          = gr.Button("\u002B Register",
+                                                    elem_classes=["btn-register"])
+                        reg_success_html = gr.HTML(visible=False)
                         gr.HTML(
                             '<hr style="border:none;border-top:1px solid '
                             'rgba(255,255,255,0.06);margin:12px 0;">'
@@ -678,15 +816,30 @@ def build_app() -> gr.Blocks:
                                 bits_slider = gr.Slider(
                                     1, 8, value=4, step=1,
                                     label="Bit Depth  (1 = 2 levels … 8 = 256 levels)",
+                                    info="Reduces colour precision. Lower values destroy adversarial noise more aggressively.",
                                 )
                                 kernel_slider = gr.Slider(
                                     3, 7, value=3, step=2,
                                     label="Median Kernel  (3 / 5 / 7)",
+                                    info="Size of the median filter kernel. Larger kernel = stronger smoothing.",
                                 )
 
+                        gr.Markdown(
+                            "_The adversarial glasses fool the model while remaining"
+                            " visually identifiable to humans (Sharif et al., 2016)._"
+                        )
                         pipeline_plot = gr.Plot(show_label=False)
                         sim_plot      = gr.Plot(show_label=False)
-                        verdict_html  = gr.HTML(visible=False)
+                        gr.Markdown(
+                            "- **0.72** — Paper-recommended LFW threshold"
+                            " (cosine similarity, ArcFace buffalo_l).\n"
+                            "- **0.50** — Demo default; convenient but not"
+                            " ROC-calibrated.\n"
+                            "- **Above line = recognised; below = rejected."
+                            " Lower similarity after defense = stronger defense.**"
+                        )
+                        verdict_html         = gr.HTML(visible=False)
+                        defense_verdict_html = gr.HTML(visible=False)
 
                 # Wire Tab 1 events
                 identity_dd.change(
@@ -707,12 +860,13 @@ def build_app() -> gr.Blocks:
                     fn=on_squeeze_detect,
                     inputs=[state_original_img, state_attacked_img,
                             state_target_embed, bits_slider, kernel_slider],
-                    outputs=[pipeline_plot, sim_plot, verdict_html],
+                    outputs=[pipeline_plot, sim_plot, verdict_html,
+                             defense_verdict_html],
                 )
                 reg_btn.click(
                     fn=on_register,
                     inputs=[reg_name, reg_photo1, reg_photo2, state_db],
-                    outputs=[state_db, identity_dd],
+                    outputs=[state_db, identity_dd, reg_success_html],
                 )
 
                 # Initialise the visible state on first load
