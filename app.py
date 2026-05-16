@@ -325,14 +325,23 @@ def _render_similarity_bars(sims: dict[str, float]) -> plt.Figure:
     y_pos = list(range(len(keys)))
     bars = ax.barh(y_pos, values, color=colors, height=0.55, alpha=0.92,
                    edgecolor="none")
-    ax.axvline(x=0.50, color="#ef4444", linestyle="--", linewidth=1.2, alpha=0.7)
+
+    # Paper-recommended ArcFace/LFW threshold — bold red
+    ax.axvline(x=0.72, color="#ef4444", linestyle="--", linewidth=2.4, alpha=1.0)
+    ax.text(0.73, len(keys) - 0.55,
+            "Paper (ArcFace, LFW): 0.72", color="#ef4444",
+            fontsize=8, alpha=1.0, fontweight="700")
+
+    # Demo default threshold — faint grey
+    ax.axvline(x=0.50, color="#888", linestyle="--", linewidth=1.0, alpha=0.5)
+    ax.text(0.51, -0.95, "Demo default: 0.50", color="#888",
+            fontsize=8, alpha=0.65, fontweight="600")
+
     ax.set_xlim(-0.05, 1.10)
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, color="#94a3b8", fontsize=10,
                        fontweight="600")
     ax.tick_params(axis="x", colors="#475569", labelsize=9)
-    ax.text(0.51, -0.95, "threshold 0.50", color="#ef4444",
-            fontsize=8, alpha=0.75, fontweight="600")
     for spine in ax.spines.values():
         spine.set_visible(False)
     for bar, val, color in zip(bars, values, colors):
@@ -686,6 +695,14 @@ def build_app() -> gr.Blocks:
 
                         pipeline_plot = gr.Plot(show_label=False)
                         sim_plot      = gr.Plot(show_label=False)
+                        gr.Markdown(
+                            "- **0.72** — Paper-recommended LFW threshold"
+                            " (cosine similarity, ArcFace buffalo_l).\n"
+                            "- **0.50** — Demo default; convenient but not"
+                            " ROC-calibrated.\n"
+                            "- **Above line = recognised; below = rejected."
+                            " Lower similarity after defense = stronger defense.**"
+                        )
                         verdict_html  = gr.HTML(visible=False)
 
                 # Wire Tab 1 events
