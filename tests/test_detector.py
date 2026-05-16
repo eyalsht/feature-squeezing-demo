@@ -73,8 +73,8 @@ def test_squeeze_detector_flags_adversarial_when_shift_exceeds_threshold(blank_f
         squeezed_embed,
     ]
 
-    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
-    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+    bit_sq = MagicMock(); bit_sq.name = "bit"; bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.name = "median"; med_sq.squeeze.return_value = blank_face_img
 
     detector = SqueezeDetector(
         embedder=mock_embedder,
@@ -93,8 +93,8 @@ def test_squeeze_detector_clean_input_not_flagged(blank_face_img):
     mock_embedder = MagicMock(spec=ArcFaceEmbedder)
     mock_embedder.embed.return_value = similar_embed
 
-    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
-    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+    bit_sq = MagicMock(); bit_sq.name = "bit"; bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.name = "median"; med_sq.squeeze.return_value = blank_face_img
 
     detector = SqueezeDetector(
         embedder=mock_embedder,
@@ -110,9 +110,24 @@ def test_detection_result_contains_all_sim_keys(blank_face_img):
     mock_embedder = MagicMock(spec=ArcFaceEmbedder)
     mock_embedder.embed.return_value = embed
 
-    bit_sq = MagicMock(); bit_sq.squeeze.return_value = blank_face_img
-    med_sq = MagicMock(); med_sq.squeeze.return_value = blank_face_img
+    bit_sq = MagicMock(); bit_sq.name = "bit"; bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.name = "median"; med_sq.squeeze.return_value = blank_face_img
 
     detector = SqueezeDetector(mock_embedder, [bit_sq, med_sq])
     result = detector.detect(embed, blank_face_img, blank_face_img)
     assert set(result.sims.keys()) == {"original", "attacked", "bit", "median"}
+
+
+def test_squeeze_detector_supports_n_squeezers(blank_face_img):
+    embed = _normed(np.random.randn(512))
+    mock_embedder = MagicMock(spec=ArcFaceEmbedder)
+    mock_embedder.embed.return_value = embed
+
+    bit_sq = MagicMock(); bit_sq.name = "bit"; bit_sq.squeeze.return_value = blank_face_img
+    med_sq = MagicMock(); med_sq.name = "median"; med_sq.squeeze.return_value = blank_face_img
+    nlm_sq = MagicMock(); nlm_sq.name = "nlm"; nlm_sq.squeeze.return_value = blank_face_img
+
+    detector = SqueezeDetector(mock_embedder, [bit_sq, med_sq, nlm_sq])
+    result = detector.detect(embed, blank_face_img, blank_face_img)
+    assert set(result.sims.keys()) == {"original", "attacked", "bit", "median", "nlm"}
+    assert set(result.squeezed_imgs.keys()) == {"bit", "median", "nlm"}
