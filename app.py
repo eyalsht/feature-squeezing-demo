@@ -76,6 +76,7 @@ CSS = """
   --text-muted:  #64748b;
   --text-body:   #94a3b8;
   --text-bright: #e2e8f0;
+  --sim-font:    13px;
 }
 
 body, .gradio-container {
@@ -213,6 +214,23 @@ input[type=range] {
   background: transparent !important;
   border: none !important;
 }
+
+/* Similarity caption typography */
+.sim-caption {
+  font-size: var(--sim-font) !important;
+  color: var(--text-body) !important;
+  line-height: 1.55 !important;
+}
+
+/* Row / column spacing */
+.gr-row { gap: 14px !important; }
+.gr-column { padding: 0 8px !important; }
+
+/* Section header letter-spacing bump */
+.section-header {
+  letter-spacing: 2.5px !important;
+  line-height: 1.4 !important;
+}
 """
 
 # ── Service bootstrap ────────────────────────────────────────────────────────
@@ -306,7 +324,10 @@ def _render_pipeline_figure(
         sim = sims.get(key)
         # show sim under panel only if we have a real value (non-zero) and image present
         show_sim = sim if (img is not None and sim is not None and sim != 0.0) else None
-        _style_image_axis(ax, color, _STAGE_LABELS[key], show_sim)
+        title = _STAGE_LABELS[key]
+        if key == "attacked":
+            title = f"{title}  ⚠ ATTACK ACTIVE"
+        _style_image_axis(ax, color, title, show_sim)
 
     fig.tight_layout(pad=1.4)
     return fig
@@ -698,6 +719,7 @@ def build_app() -> gr.Blocks:
                             choices=DB.names(),
                             label="Target Identity",
                             value=DB.names()[0] if DB.names() else None,
+                            info="Select the registered identity to compare against.",
                         )
                         target_photo = gr.Image(
                             label="Selected", height=140, interactive=False,
@@ -714,8 +736,17 @@ def build_app() -> gr.Blocks:
                             '&#43; Register Face</div>'
                         )
                         reg_photo1 = gr.Image(label="Photo 1", height=80, type="numpy")
+                        gr.Markdown(
+                            "<small style='color:#64748b'>Clear frontal face photo</small>",
+                        )
                         reg_photo2 = gr.Image(label="Photo 2", height=80, type="numpy")
-                        reg_name   = gr.Textbox(label="Name", placeholder="Your name")
+                        gr.Markdown(
+                            "<small style='color:#64748b'>Second photo (different angle)</small>",
+                        )
+                        reg_name   = gr.Textbox(
+                            label="Name", placeholder="Your name",
+                            info="Full name shown in the Target Identity dropdown.",
+                        )
                         reg_btn    = gr.Button("\u002B Register",
                                                elem_classes=["btn-register"])
                         gr.HTML(
@@ -741,12 +772,18 @@ def build_app() -> gr.Blocks:
                                 bits_slider = gr.Slider(
                                     1, 8, value=4, step=1,
                                     label="Bit Depth  (1 = 2 levels … 8 = 256 levels)",
+                                    info="Reduces colour precision. Lower values destroy adversarial noise more aggressively.",
                                 )
                                 kernel_slider = gr.Slider(
                                     3, 7, value=3, step=2,
                                     label="Median Kernel  (3 / 5 / 7)",
+                                    info="Size of the median filter kernel. Larger kernel = stronger smoothing.",
                                 )
 
+                        gr.Markdown(
+                            "_The adversarial glasses fool the model while remaining"
+                            " visually identifiable to humans (Sharif et al., 2016)._"
+                        )
                         pipeline_plot = gr.Plot(show_label=False)
                         sim_plot      = gr.Plot(show_label=False)
                         gr.Markdown(
