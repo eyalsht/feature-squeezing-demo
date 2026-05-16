@@ -1109,7 +1109,9 @@ def build_app() -> gr.Blocks:
                         lab_attacker_photo = gr.Image(
                             label="Attacker Photo",
                             type="numpy", height=180,
-                            info="Upload a clear frontal face photo.",
+                        )
+                        gr.Markdown(
+                            "<small style='color:#64748b'>Clear frontal face photo</small>"
                         )
                         lab_target_dd = gr.Dropdown(
                             choices=DB.names(),
