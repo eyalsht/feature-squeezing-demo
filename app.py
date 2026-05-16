@@ -592,12 +592,22 @@ def on_register(name: str, photo1, photo2, db_state):
     img1 = _img_array(photo1)
     img2 = _img_array(photo2)
     if img1 is None or img2 is None or not name or not name.strip():
-        return db_state, gr.update()
+        raise gr.Error(
+            "Please upload both photos and enter a name before registering."
+        )
     try:
         DB.register(name.strip(), img1, img2)
-    except ValueError:
-        return db_state, gr.update()
-    return db_state, gr.update(choices=DB.names(), value=name.strip())
+    except ValueError as exc:
+        raise gr.Error(str(exc)) from exc
+    success_html = (
+        f"<span style='color:#10b981;font-weight:700;font-size:13px;'>"
+        f"✅ {name.strip()} registered successfully.</span>"
+    )
+    return (
+        db_state,
+        gr.update(choices=DB.names(), value=name.strip()),
+        gr.update(value=success_html, visible=True),
+    )
 
 
 # ── Tab 2 handler ────────────────────────────────────────────────────────────
@@ -747,8 +757,9 @@ def build_app() -> gr.Blocks:
                             label="Name", placeholder="Your name",
                             info="Full name shown in the Target Identity dropdown.",
                         )
-                        reg_btn    = gr.Button("\u002B Register",
-                                               elem_classes=["btn-register"])
+                        reg_btn          = gr.Button("\u002B Register",
+                                                    elem_classes=["btn-register"])
+                        reg_success_html = gr.HTML(visible=False)
                         gr.HTML(
                             '<hr style="border:none;border-top:1px solid '
                             'rgba(255,255,255,0.06);margin:12px 0;">'
@@ -822,7 +833,7 @@ def build_app() -> gr.Blocks:
                 reg_btn.click(
                     fn=on_register,
                     inputs=[reg_name, reg_photo1, reg_photo2, state_db],
-                    outputs=[state_db, identity_dd],
+                    outputs=[state_db, identity_dd, reg_success_html],
                 )
 
                 # Initialise the visible state on first load
